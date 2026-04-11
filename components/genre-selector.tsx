@@ -1,47 +1,48 @@
-'use client';
+'use client'
 
-import { Genre } from '@/lib/types';
-import { genreMetadata, allGenres } from '@/lib/genre-metadata';
-import { cn } from '@/lib/utils';
+import { Genre } from '@/lib/types'
+import { genreMetadata, allGenres } from '@/lib/genre-metadata'
+import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface GenreSelectorProps {
-  value?: Genre;
-  onChange: (genre: Genre) => void;
-  className?: string;
+  value?: Genre
+  onChange: (genre: Genre) => void
+  className?: string
 }
 
 export function GenreSelector({ value, onChange, className }: GenreSelectorProps) {
   return (
-    <div className={cn('grid grid-cols-2 sm:grid-cols-4 gap-2', className)}>
-      {allGenres.map((genre) => {
-        const metadata = genreMetadata[genre];
-        const isSelected = value === genre;
+    <ScrollArea className={cn('max-h-[min(420px,52vh)] w-full rounded-lg border border-border/50', className)}>
+      <div className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 md:grid-cols-4">
+        {allGenres.map((genre) => {
+          const metadata = genreMetadata[genre]
+          const isSelected = value === genre
 
-        return (
-          <button
-            key={genre}
-            type="button"
-            onClick={() => onChange(genre)}
-            className={cn(
-              'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all',
-              'hover:border-primary/50 hover:bg-accent/50',
-              isSelected
-                ? 'border-primary bg-accent shadow-md'
-                : 'border-border bg-card'
-            )}
-          >
-            <span className="text-2xl">{metadata.icon}</span>
-            <div className="text-center">
-              <div className={cn('font-medium text-sm', isSelected && metadata.color)}>
-                {metadata.label}
+          return (
+            <button
+              key={genre}
+              type="button"
+              onClick={() => onChange(genre)}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-lg border-2 p-2.5 text-left transition-all',
+                'hover:border-primary/50 hover:bg-accent/50',
+                isSelected ? 'border-primary bg-accent shadow-md' : 'border-border bg-card'
+              )}
+            >
+              <span className="text-xl">{metadata.icon}</span>
+              <div className="w-full text-center">
+                <div className={cn('text-xs font-medium leading-tight', isSelected && metadata.color)}>
+                  {metadata.label}
+                </div>
+                <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                  {metadata.description}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                {metadata.description}
-              </div>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
+            </button>
+          )
+        })}
+      </div>
+    </ScrollArea>
+  )
 }
