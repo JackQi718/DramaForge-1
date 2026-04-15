@@ -71,6 +71,7 @@ function ensurePromptStructure(
   duration: string,
   sceneTag: string,
   characterTag: string,
+  sceneDescription: string,
   cameraMovement: string,
   dialogue: string,
   continuityLine: string
@@ -93,6 +94,21 @@ function ensurePromptStructure(
     if (!block.label.test(output)) {
       output = `${output}${output ? '\n' : ''}${block.line}`;
     }
+  }
+
+  // 强制融合关键字段：镜头运动、场景描述、对白必须进入视频提示词
+  const safeSceneDescription = sceneDescription?.trim() || `${characterTag} 在 ${sceneTag} 完成关键动作。`;
+  const safeDialogue = dialogue?.trim() || '无对白';
+  output = output.replace(/镜头调度：.*$/m, `镜头调度：${cameraMovement}`);
+  if (/画面描述：.*$/m.test(output)) {
+    output = output.replace(/画面描述：.*$/m, `画面描述：${safeSceneDescription}`);
+  } else {
+    output = `${output}\n画面描述：${safeSceneDescription}`;
+  }
+  if (/对白：.*$/m.test(output)) {
+    output = output.replace(/对白：.*$/m, `对白：${safeDialogue}`);
+  } else {
+    output = `${output}\n对白：${safeDialogue}`;
   }
 
   if (!output.includes(sceneTag)) {
@@ -169,6 +185,7 @@ export async function POST(request: NextRequest) {
 3. 禁止“看起来专业但无法执行”的空话（如“电影感十足”“高级镜头语言”）；必须可被摄影、灯光、演员直接执行。
 4. 镜头衔接需遵守连续性：角色朝向、运动方向、空间方位前后不打架；如有跳轴或时空跳切，必须明确写出意图（如制造错乱、回忆闪回）。
 5. 每条 aiVideoPrompt 必须体现时间段、时间属性（如日/夜）、场景图、镜头调度、表演文本、音色、特效，并保持与 duration 一致。
+6. 每条 aiVideoPrompt 必须把本条的 sceneDescription（核心画面信息）、dialogue（对白内容）和 cameraMovement（镜头运动）完整糅合进去，三者缺一不可。
 
 请生成分镜，包含：
 1. 分镜列表（条数符合上文 1～3 分钟单集、每镜 3～8 秒的要求）
@@ -192,7 +209,7 @@ export async function POST(request: NextRequest) {
       "mood": "氛围情绪（如：紧张、温馨、激动、悲伤等）",
       "voiceOver": "画外音内容（如果有的话，没有则为空字符串）",
       "colorTone": "画面色调（如：暖色调、冷色调、高对比度、柔和光线等）",
-      "aiVideoPrompt": "完整的中文视频拍摄提示词，必须严格采用以下可执行结构并包含@引用：\n0-X秒（X必须等于duration秒数）\n时间：日/夜\n场景图片：@场景编号或名称\n镜头调度：可执行导演指令（机位+运动+对象+方向+目的）\n表演与动作：使用@角色描述动作与台词\n音色：声线、年龄感、语气、强弱、节奏\n特效：可执行的画面特效或信息叠加\n镜头衔接：说明与上一镜头/下一镜头的连接依据\n时长：3秒～8秒且与duration一致"
+      "aiVideoPrompt": "完整的中文视频拍摄提示词，必须严格采用以下可执行结构并包含@引用：\n0-X秒（X必须等于duration秒数）\n时间：日/夜\n场景图片：@场景编号或名称\n镜头调度：可执行导演指令（机位+运动+对象+方向+目的，必须与cameraMovement一致）\n画面描述：必须提炼并复述sceneDescription核心画面信息\n表演与动作：使用@角色描述动作与台词\n对白：必须包含dialogue中的核心对白（无对白可写“无对白”）\n音色：声线、年龄感、语气、强弱、节奏\n特效：可执行的画面特效或信息叠加\n镜头衔接：说明与上一镜头/下一镜头的连接依据\n时长：3秒～8秒且与duration一致"
     }
   ]
 }
@@ -204,7 +221,8 @@ export async function POST(request: NextRequest) {
 4. 对话要符合角色性格；**禁止**在单条分镜内写超出 3～8 秒能拍完的长对白。
 5. 提示词需可直接用于短视频/AI 视频工具（单片段 3～8 秒）。
 6. sceneDescription 与 aiVideoPrompt 中都必须出现 @场景 与 @角色。
-7. 镜头衔接必须明确写出衔接依据（动作、轴线、视线、景别或节奏）。`;
+7. 镜头衔接必须明确写出衔接依据（动作、轴线、视线、景别或节奏）。
+8. aiVideoPrompt 必须融合 sceneDescription、dialogue、cameraMovement 三个字段内容。`;
 
     const aiResponse = await client.chat({
       model: 'deepseek-chat',
@@ -299,6 +317,7 @@ export async function POST(request: NextRequest) {
         scene.duration,
         sceneTag,
         characterTag,
+        sceneDescription,
         cameraMovement,
         scene.dialogue,
         continuityLine
